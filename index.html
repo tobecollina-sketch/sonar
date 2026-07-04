@@ -4317,6 +4317,17 @@ function Players({players,setPlayers,reports,setReports,currentUser,rumours,setR
       });
     }
   };
+  const removePipelineEntry=(player)=>{
+    if(!setPipeline)return;
+    const existing=(pipeline||[]).find(e=>e.playerName===player.name||e.playerId===player.id);
+    if(!existing)return;
+    setPipeline(ps=>ps.filter(e=>e.id!==existing.id));
+    if(player.id){
+      addTLEvent(player.id,{id:uid(),date:today(),type:"note",
+        title:"Pipeline: "+existing.stage+" → rimosso",
+        scout:currentUser?.name||""});
+    }
+  };
   const photoInputRef=React.useRef(null);
   const handleBatchPhotos=async(e)=>{
     const files=Array.from(e.target.files||[]);
@@ -4506,6 +4517,11 @@ function Players({players,setPlayers,reports,setReports,currentUser,rumours,setR
                       >{stg||"＋ pipe"} {stg?"▾":""}</button>
                       {plStageOpen===p.id&&(
                         <div onClick={e=>e.stopPropagation()} style={{position:"absolute",right:0,top:"100%",zIndex:60,background:"var(--surface2)",border:"1px solid var(--border2)",borderRadius:6,boxShadow:"0 4px 16px rgba(0,0,0,.4)",minWidth:170,marginTop:3,overflow:"hidden"}}>
+                          {stg&&<div onClick={()=>{removePipelineEntry(p);setPlStageOpen(null);}}
+                            style={{padding:"8px 12px",fontSize:12,cursor:"pointer",color:"#ef4444",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8}}
+                            onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,.08)"}
+                            onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                          >✕ Rimuovi dalla pipeline</div>}
                           {PIPE_STAGES.map(s=>(
                             <div key={s} onClick={()=>{changePipelineStage(p,s);setPlStageOpen(null);}}
                               style={{padding:"8px 12px",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:8,background:s===stg?"rgba(255,255,255,.06)":"transparent",fontWeight:s===stg?700:400}}
@@ -4759,6 +4775,11 @@ function Players({players,setPlayers,reports,setReports,currentUser,rumours,setR
                           >{stg||"＋"} {stg?"▾":""}</button>
                           {plStageOpen===p.id&&(
                             <div onClick={e=>e.stopPropagation()} style={{position:"absolute",left:0,top:"100%",zIndex:60,background:"var(--surface2)",border:"1px solid var(--border2)",borderRadius:6,boxShadow:"0 4px 16px rgba(0,0,0,.4)",minWidth:180,marginTop:3,overflow:"hidden"}}>
+                              {stg&&<div onClick={()=>{removePipelineEntry(p);setPlStageOpen(null);}}
+                                style={{padding:"8px 12px",fontSize:12,cursor:"pointer",color:"#ef4444",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8}}
+                                onMouseEnter={e=>e.currentTarget.style.background="rgba(239,68,68,.08)"}
+                                onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                              >✕ Rimuovi dalla pipeline</div>}
                               {PIPE_STAGES.map(s=>(
                                 <div key={s} onClick={()=>{changePipelineStage(p,s);setPlStageOpen(null);}}
                                   style={{padding:"8px 12px",fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:8,background:s===stg?"rgba(255,255,255,.06)":"transparent",fontWeight:s===stg?700:400}}
