@@ -7873,6 +7873,7 @@ function PlayerTimeline({player,reports,rumours}){
     {id:"transfer",      label:"Trasferimento",       color:"#c8a84b"},
     {id:"note",          label:"Nota",               color:"#6b7280"},
     {id:"redflag",       label:"Red Flag",           color:"#e05252"},
+    {id:"gamelog",       label:"Game Log",           color:"#22d3ee"},
   ];
 
   const repItems=(reports||[]).filter(r=>r.playerName===player.name&&r.date).map(r=>({
@@ -7939,6 +7940,7 @@ function PlayerTimeline({player,reports,rumours}){
     if(type==="call")     return <span style={{fontSize:11}}>🏆</span>;
     if(type==="waiver")   return <span style={{fontSize:11}}>✂</span>;
     if(type==="redflag") return <span style={{fontSize:11}}>🚨</span>;
+    if(type==="gamelog") return <span style={{fontSize:11}}>🎬</span>;
     return <span style={{fontSize:11}}>📌</span>;
   };
 
@@ -7976,7 +7978,10 @@ function PlayerTimeline({player,reports,rumours}){
           {/* Expanded: show full details */}
           {isOpen&&(
             <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border)"}}>
-              {ev.note&&<div style={{fontSize:12,color:"var(--text)",lineHeight:1.65,marginBottom:6,whiteSpace:"pre-wrap"}}>{ev.note}</div>}
+              {ev.noteHtml
+                ?<div dangerouslySetInnerHTML={{__html:ev.noteHtml}} style={{fontSize:12,color:"var(--text)",lineHeight:1.65,marginBottom:6}}/>
+                :ev.note&&<div style={{fontSize:12,color:"var(--text)",lineHeight:1.65,marginBottom:6,whiteSpace:"pre-wrap"}}>{ev.note}</div>
+              }
               {ev.url&&<a href={ev.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"var(--accent)",textDecoration:"none",display:"inline-block",marginTop:2,fontFamily:"var(--font-mono)"}}>↗ Apri link</a>}
               {!ev._manual&&ev.type==="report"&&<div style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--muted)",marginTop:4}}>Per rimuovere questo evento elimina il report dalla sezione Reports.</div>}
               {!ev._manual&&ev.type==="rumour"&&<div style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--muted)",marginTop:4}}>Per rimuovere questo evento elimina il rumour dalla sezione Rumours.</div>}
@@ -8292,6 +8297,17 @@ function ScoutingLive({players,currentUser,addGame,upsertGame,games}){
     setSlGrades(s=>{const ns={...s};delete ns[selId];return ns;});
     setSaved(s=>({...s,[selId]:true}));
     setTimeout(()=>setSaved(s=>({...s,[selId]:false})),2500);
+    // Log in timeline
+    const plainText=html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    addTLEvent(sel.id,{
+      id:uid(),
+      date:today(),
+      type:"gamelog",
+      title:"Game Log"+(sessionEvent?" — "+sessionEvent:""),
+      scout:currentUser?.name||"",
+      note:plainText||null,
+      noteHtml:html,
+    });
   };
   const onFlag=(playerId,playerName)=>{
     const g=ensureGame();
