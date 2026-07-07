@@ -716,6 +716,7 @@ const BOARD_DEFAULT_TIERS = [
   {id:"tier3", label:"Tier 3", color:"#c8a84b"},
   {id:"tier4", label:"Tier 4", color:"#6b7280"},
 ];
+const BOARD_ROLES = ["PG","PG-SG","SG","SG-SF","SF","SF-PF","PF","PF-C","C"];
 
 const ROSTER_DEFAULT_POSITIONS = [
   {id:"pg",  slot:1,  role:"PG", label:"Point Guard",    group:"tit", confirmed:"", alts:["","","","",""]},
@@ -5757,6 +5758,8 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
       createdBy:currentUser?.name||"",createdAt:today(),type:newBoardForm.type||"scouting"};
     const b=newBoardForm.type==="roster"
       ?{...base,positions:ROSTER_DEFAULT_POSITIONS.map(p=>({...p,alts:[...p.alts]}))}
+      :newBoardForm.type==="role"
+      ?{...base,columns:BOARD_ROLES.map(r=>({id:r,label:r,entries:[]}))}
       :{...base,tiers:BOARD_DEFAULT_TIERS.map(t=>({...t,entries:[]}))};
     setBoards(bs=>[...bs,b]);
     setActiveBoardId(b.id);
@@ -5791,9 +5794,23 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
 
   const saveNote=()=>{
     if(!editNote)return;
-    updateBoard(activeBoard.id,b=>({...b,tiers:b.tiers.map(t=>t.id===editNote.tierId?{...t,entries:t.entries.map(e=>e.id===editNote.entryId?{...e,note:noteVal}:e)}:t)}));
+    if(editNote.colId){
+      updateBoard(activeBoard.id,b=>({...b,columns:b.columns.map(c=>c.id===editNote.colId?{...c,entries:c.entries.map(e=>e.id===editNote.entryId?{...e,note:noteVal}:e)}:c)}));
+    } else {
+      updateBoard(activeBoard.id,b=>({...b,tiers:b.tiers.map(t=>t.id===editNote.tierId?{...t,entries:t.entries.map(e=>e.id===editNote.entryId?{...e,note:noteVal}:e)}:t)}));
+    }
     setEditNote(null);
   };
+  // Role board helpers
+  const addEntryRole=(colId,tierId,player)=>{
+    if(!activeBoard)return;
+    const allE=(activeBoard.columns||[]).flatMap(c=>c.entries||[]);
+    if(allE.some(e=>e.playerId===player.id))return;
+    updateBoard(activeBoard.id,b=>({...b,columns:b.columns.map(c=>c.id===colId?{...c,entries:[...c.entries,{id:uid(),playerId:player.id,playerName:player.name,tier:tierId,note:"",addedAt:today(),addedBy:currentUser?.name||""}]}:c)}));
+    setAddSearch("");setShowAddPlayer(null);
+  };
+  const removeEntryRole=(colId,entryId)=>updateBoard(activeBoard.id,b=>({...b,columns:b.columns.map(c=>c.id===colId?{...c,entries:c.entries.filter(e=>e.id!==entryId)}:c)}));
+  const changeTierInCol=(colId,entryId,newTier)=>updateBoard(activeBoard.id,b=>({...b,columns:b.columns.map(c=>c.id===colId?{...c,entries:c.entries.map(e=>e.id===entryId?{...e,tier:newTier}:e)}:c)}));
 
   const onDragStart=(e,tierId,entryId,idx)=>{setDragInfo({tierId,entryId,idx});e.dataTransfer.effectAllowed="move";};
   const onDragOver=(e,tierId,idx)=>{e.preventDefault();setDragOver({tierId,idx});};
@@ -5826,8 +5843,11 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14}}>
           {boards.map(b=>{
             const isRoster=b.type==="roster";
+            const isRole=b.type==="role";
             const total=isRoster
               ?(b.positions||[]).filter(p=>p.confirmed.trim()).length
+              :isRole
+              ?(b.columns||[]).reduce((a,c)=>a+(c.entries||[]).length,0)
               :(b.tiers||[]).reduce((a,t)=>a+t.entries.length,0);
             return(
               <div key={b.id} onClick={()=>setActiveBoardId(b.id)}
@@ -5837,8 +5857,8 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
                   <div style={{display:"flex",alignItems:"center",gap:7}}>
                     <div style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>{b.name}</div>
-                    <span style={{fontSize:8,padding:"1px 6px",borderRadius:3,background:isRoster?"#1e3a5f":"#2d1a1a",color:isRoster?"#60a5fa":"#e05252",fontFamily:"var(--font-mono)",letterSpacing:".08em"}}>
-                      {isRoster?"ROSTER":"SCOUTING"}
+                    <span style={{fontSize:8,padding:"1px 6px",borderRadius:3,background:isRoster?"#1e3a5f":isRole?"#14292e":"#2d1a1a",color:isRoster?"#60a5fa":isRole?"#22d3ee":"#e05252",fontFamily:"var(--font-mono)",letterSpacing:".08em"}}>
+                      {isRoster?"ROSTER":isRole?"ROLE BOARD":"SCOUTING"}
                     </span>
                   </div>
                   <button className="btn-danger" style={{padding:"1px 6px",fontSize:9}} onClick={e=>{e.stopPropagation();deleteBoard(b.id);}}>✕</button>
@@ -5854,6 +5874,15 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
                       </span>;
                     })}
                   </div>
+                ):isRole?(
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:8}}>
+                    {(b.columns||[]).filter(c=>(c.entries||[]).length>0).map(c=>(
+                      <span key={c.id} style={{fontSize:9,padding:"1px 7px",borderRadius:10,background:"rgba(34,211,238,.1)",color:"#22d3ee",border:"1px solid rgba(34,211,238,.25)"}}>
+                        {c.label} {c.entries.length}
+                      </span>
+                    ))}
+                    {(b.columns||[]).every(c=>!(c.entries||[]).length)&&<span style={{fontSize:10,color:"var(--muted)"}}>Empty</span>}
+                  </div>
                 ):(
                   <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
                     {(b.tiers||[]).filter(t=>t.entries.length>0).map(t=>(
@@ -5866,6 +5895,7 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
                 )}
                 <div style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--muted)"}}>
                   {isRoster?`${total}/12 confermati`:`${total} player${total!==1?"s":""}`} · {b.createdBy} · {fmtDate(b.createdAt)}
+
                 </div>
               </div>
             );
@@ -5874,7 +5904,7 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
         {showNewBoard&&(
           <Modal title="New Board" onClose={()=>setShowNewBoard(false)}>
             <div style={{display:"flex",gap:8,marginBottom:14}}>
-              {[{v:"scouting",label:"Scouting Board",desc:"Tier list per valutare i target"},{v:"roster",label:"Roster Planning",desc:"Griglia posizioni per costruire il roster"}].map(opt=>(
+              {[{v:"scouting",label:"Scouting Board",desc:"Tier list per valutare i target"},{v:"role",label:"Role Board",desc:"9 colonne per ruolo (PG→C) con Tier 1-4 dentro"},{v:"roster",label:"Roster Planning",desc:"Griglia posizioni per costruire il roster"}].map(opt=>(
                 <div key={opt.v} onClick={()=>setNewBoardForm(f=>({...f,type:opt.v}))}
                   style={{flex:1,padding:"10px 12px",borderRadius:6,border:`2px solid ${newBoardForm.type===opt.v?"var(--accent)":"var(--border)"}`,cursor:"pointer",background:newBoardForm.type===opt.v?"rgba(200,16,46,.07)":"var(--surface2)",transition:"all .15s"}}>
                   <div style={{fontWeight:700,fontSize:12,color:newBoardForm.type===opt.v?"var(--accent)":"var(--text)",marginBottom:3}}>{opt.label}</div>
@@ -5897,6 +5927,124 @@ function Boards({boards,setBoards,players,reports,currentUser,setPage,openPlayer
   if(!activeBoard){setActiveBoardId(null);return null;}
 
   // ── Roster Board ──
+  // ── Role Board ──
+  if(activeBoard.type==="role"){
+    const allInBoard=new Set((activeBoard.columns||[]).flatMap(c=>(c.entries||[]).map(e=>e.playerId)));
+    const filteredForAdd=players.filter(p=>!allInBoard.has(p.id)&&(!addSearch||p.name.toLowerCase().includes(addSearch.toLowerCase())||(p.team||"").toLowerCase().includes(addSearch.toLowerCase())));
+    const totalEntries=(activeBoard.columns||[]).reduce((a,c)=>a+(c.entries||[]).length,0);
+    return(
+      <div>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+          <button className="btn-ghost" style={{padding:"3px 10px",fontSize:12}} onClick={()=>setActiveBoardId(null)}>← Boards</button>
+          <div style={{fontFamily:"var(--font-head)",fontSize:20,letterSpacing:".06em"}}>{activeBoard.name}</div>
+          {activeBoard.description&&<span style={{fontSize:11,color:"var(--muted)"}}>{activeBoard.description}</span>}
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--muted)"}}>{totalEntries} players · {activeBoard.createdBy} · {fmtDate(activeBoard.createdAt)}</span>
+          </div>
+        </div>
+        {/* Add player panel */}
+        {showAddPlayer&&(
+          <div style={{background:"var(--surface2)",border:"1px solid var(--border2)",borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"var(--font-mono)",fontSize:10,fontWeight:700,color:"var(--accent)"}}>+ ADD → {showAddPlayer.colId}</span>
+              <select value={showAddPlayer.tierId} onChange={e=>setShowAddPlayer(s=>({...s,tierId:e.target.value}))} style={{fontSize:11,padding:"3px 7px"}}>
+                {BOARD_DEFAULT_TIERS.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <input value={addSearch} onChange={e=>setAddSearch(e.target.value)} placeholder="Cerca giocatore…" autoFocus style={{flex:1,minWidth:160,fontSize:12,padding:"4px 9px"}}/>
+              <button className="btn-ghost" style={{fontSize:11,padding:"3px 9px"}} onClick={()=>{setShowAddPlayer(null);setAddSearch("");}}>✕</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,maxHeight:180,overflowY:"auto"}}>
+              {filteredForAdd.slice(0,30).map(p=>(
+                <div key={p.id} onClick={()=>addEntryRole(showAddPlayer.colId,showAddPlayer.tierId,p)}
+                  style={{padding:"4px 10px",background:"var(--surface)",border:"1px solid var(--border)",borderRadius:5,cursor:"pointer",fontSize:12,display:"flex",flexDirection:"column"}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor="var(--accent)"}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+                  <span style={{fontWeight:600}}>{p.name}</span>
+                  <span style={{fontSize:9,color:"var(--muted)"}}>{[p.pos,p.team].filter(Boolean).join(" · ")||"—"}</span>
+                </div>
+              ))}
+              {filteredForAdd.length===0&&<span style={{fontSize:11,color:"var(--muted)"}}>Nessun giocatore trovato</span>}
+            </div>
+          </div>
+        )}
+        {/* Role columns */}
+        <div style={{overflowX:"auto",paddingBottom:12}}>
+          <div style={{display:"flex",gap:10,minWidth:(activeBoard.columns||[]).length*210+"px"}}>
+            {(activeBoard.columns||[]).map(col=>{
+              const colEntries=col.entries||[];
+              const tierColors={tier1:"#e05252",tier2:"#e0a352",tier3:"#c8a84b",tier4:"#6b7280"};
+              return(
+                <div key={col.id} style={{width:200,flexShrink:0,display:"flex",flexDirection:"column"}}>
+                  {/* Column header */}
+                  <div style={{display:"flex",alignItems:"center",gap:6,padding:"7px 10px",background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:"6px 6px 0 0",borderBottom:"2px solid var(--accent)",marginBottom:6}}>
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:13,fontWeight:800,color:"var(--accent)"}}>{col.label}</span>
+                    <span style={{fontFamily:"var(--font-mono)",fontSize:9,color:"var(--muted)"}}>{colEntries.length}</span>
+                    <button className="btn-ghost" style={{marginLeft:"auto",padding:"1px 7px",fontSize:10}} onClick={()=>setShowAddPlayer({colId:col.id,tierId:"tier1"})}>+ Add</button>
+                  </div>
+                  {/* Tier groups */}
+                  {BOARD_DEFAULT_TIERS.map(tier=>{
+                    const tierEntries=colEntries.filter(e=>e.tier===tier.id);
+                    return(
+                      <div key={tier.id} style={{marginBottom:5}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 8px",background:tier.color+"18",borderLeft:`2px solid ${tier.color}`,borderRadius:"0 3px 3px 0",marginBottom:3}}>
+                          <span style={{width:6,height:6,borderRadius:"50%",background:tier.color,flexShrink:0,display:"inline-block"}}/>
+                          <span style={{fontFamily:"var(--font-mono)",fontSize:9,fontWeight:700,color:tier.color,flex:1}}>{tier.label}</span>
+                          {tierEntries.length>0&&<span style={{fontFamily:"var(--font-mono)",fontSize:8,color:"var(--muted)"}}>{tierEntries.length}</span>}
+                          <button onClick={()=>setShowAddPlayer({colId:col.id,tierId:tier.id})} style={{background:"none",border:"none",color:tier.color,cursor:"pointer",fontSize:13,lineHeight:1,padding:0,opacity:.7}}>+</button>
+                        </div>
+                        {tierEntries.map(entry=>{
+                          const player=players.find(p=>p.id===entry.playerId)||{id:entry.playerId,name:entry.playerName,pos:"",team:"",photoUrl:"",agencyName:""};
+                          const pReports=reports.filter(r=>r.playerId===entry.playerId||r.playerName===entry.playerName);
+                          const latestR=[...pReports].sort((a,b)=>b.date.localeCompare(a.date))[0];
+                          return(
+                            <div key={entry.id} style={{padding:"6px 8px",background:"var(--surface)",border:"1px solid var(--border)",borderLeft:`2px solid ${tier.color}44`,borderRadius:4,marginBottom:3,position:"relative"}}>
+                              <div style={{display:"flex",alignItems:"flex-start",gap:5}}>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontWeight:600,fontSize:12,color:"var(--text)",cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}
+                                    onClick={()=>{if(player.id&&openPlayerExt)openPlayerExt(player);}}>
+                                    {player.name}
+                                  </div>
+                                  <div style={{fontSize:9,color:"var(--muted)",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{[player.pos,player.team].filter(Boolean).join(" · ")||"—"}</div>
+                                  {latestR&&<span className={`tag ${RATING_COLOR[latestR.overallRating]||'tag-gray'}`} style={{fontSize:8,padding:"0 4px",marginTop:2,display:"inline-block"}}>{latestR.overallRating}</span>}
+                                  {entry.note&&<div style={{fontSize:9,color:"var(--muted)",fontStyle:"italic",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{entry.note}</div>}
+                                </div>
+                                <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
+                                  <button onClick={()=>removeEntryRole(col.id,entry.id)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:12,lineHeight:1,padding:0}} title="Rimuovi">✕</button>
+                                  <button onClick={()=>{setEditNote({colId:col.id,entryId:entry.id});setNoteVal(entry.note||"");}} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:10,lineHeight:1,padding:0}} title="Nota">✎</button>
+                                </div>
+                              </div>
+                              {/* Tier change */}
+                              <div style={{display:"flex",gap:2,marginTop:4}}>
+                                {BOARD_DEFAULT_TIERS.map(t=>(
+                                  <button key={t.id} onClick={()=>changeTierInCol(col.id,entry.id,t.id)}
+                                    style={{padding:"1px 4px",fontSize:8,fontFamily:"var(--font-mono)",fontWeight:700,borderRadius:3,border:`1px solid ${t.color}44`,background:entry.tier===t.id?t.color+"33":"transparent",color:t.color,cursor:"pointer",opacity:entry.tier===t.id?1:.5}}>
+                                    {t.id.replace("tier","T")}
+                                  </button>
+                                ))}
+                              </div>
+                              {editNote?.entryId===entry.id&&editNote?.colId===col.id&&(
+                                <div style={{display:"flex",gap:4,marginTop:5}}>
+                                  <input value={noteVal} onChange={e=>setNoteVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveNote()} placeholder="Nota…" style={{flex:1,fontSize:10,padding:"2px 6px"}} autoFocus/>
+                                  <button className="btn-primary" style={{padding:"2px 7px",fontSize:10}} onClick={saveNote}>OK</button>
+                                  <button className="btn-ghost" style={{padding:"2px 7px",fontSize:10}} onClick={()=>setEditNote(null)}>✕</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if(activeBoard.type==="roster"){
     const updatePos=(posId,fn)=>updateBoard(activeBoard.id,b=>({...b,positions:b.positions.map(p=>p.id===posId?fn(p):p)}));
     const titPos=(activeBoard.positions||[]).filter(p=>p.group==="tit");
