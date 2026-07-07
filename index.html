@@ -3311,7 +3311,7 @@ function PlayerViewModal({player,onClose,onEdit,onDelete,onPrev,onNext,navLabel,
             );})()}
 
             {/* NBA Service + 2W Tracker + Draft */}
-            {((player.nbaServiceYears!=null&&player.nbaServiceYears!=="")||player.draftRound||(Array.isArray(player.twoWaySeasons)&&player.twoWaySeasons.length>0)||(Array.isArray(player.nbaDeals)&&player.nbaDeals.length>0))&&(
+            {((player.nbaServiceYears!=null&&player.nbaServiceYears!=="")||player.draftRound||(Array.isArray(player.twoWaySeasons)&&player.twoWaySeasons.length>0)||(Array.isArray(player.nbaDeals)&&player.nbaDeals.filter(d=>d&&typeof d==="object").length>0))&&(
               <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
                 {player.nbaServiceYears!=null&&player.nbaServiceYears!==""&&(
                   <div style={{flex:1,minWidth:150,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px"}}>
@@ -3348,29 +3348,40 @@ function PlayerViewModal({player,onClose,onEdit,onDelete,onPrev,onNext,navLabel,
                     </div>
                   </div>
                 )}
-                {Array.isArray(player.nbaDeals)&&player.nbaDeals.length>0&&(
-                  <div style={{flex:1,minWidth:180,background:"rgba(82,130,224,.06)",border:"1px solid rgba(82,130,224,.25)",borderRadius:8,padding:"10px 14px"}}>
-                    <div style={{fontFamily:"var(--font-mono)",fontSize:7.5,color:"#5282e0",textTransform:"uppercase",letterSpacing:".1em",marginBottom:6}}>NBA DEAL TRACKER</div>
-                    <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:6}}>
-                      <span style={{fontWeight:700,fontSize:22,color:"#5282e0"}}>{player.nbaDeals.length}</span>
-                      <span style={{fontSize:11,color:"var(--muted)"}}>deal{player.nbaDeals.length>1?"s":""} firmati</span>
+                {Array.isArray(player.nbaDeals)&&player.nbaDeals.filter(d=>d&&typeof d==="object").length>0&&(()=>{
+                  const deals=player.nbaDeals.filter(d=>d&&typeof d==="object");
+                  const now=new Date();const mo=now.getMonth();const yr=now.getFullYear();
+                  const curSY=mo>=9?yr:yr-1;
+                  const endSeason=d=>{const sy=parseInt(d.season);const ey=sy+d.years-1;return`${ey}-${String(ey+1).slice(-2)}`;};
+                  const isActive=d=>!d.cutAt&&curSY>=parseInt(d.season)&&curSY<=parseInt(d.season)+d.years-1;
+                  const activeDeal=deals.find(isActive);
+                  return(
+                    <div style={{flex:1,minWidth:180,background:"rgba(82,130,224,.06)",border:"1px solid rgba(82,130,224,.25)",borderRadius:8,padding:"10px 14px"}}>
+                      <div style={{fontFamily:"var(--font-mono)",fontSize:7.5,color:"#5282e0",textTransform:"uppercase",letterSpacing:".1em",marginBottom:6}}>NBA DEAL TRACKER</div>
+                      <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:6}}>
+                        <span style={{fontWeight:700,fontSize:22,color:"#5282e0"}}>{deals.length}</span>
+                        <span style={{fontSize:11,color:"var(--muted)"}}>deal{deals.length>1?"s":""} firmati</span>
+                        {activeDeal&&<span style={{fontSize:9,fontFamily:"var(--font-mono)",fontWeight:700,color:"#fff",background:"#5282e0",borderRadius:3,padding:"1px 6px",marginLeft:4}}>ATTIVO</span>}
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                        {deals.map(d=>{
+                          const active=isActive(d);const cut=!!d.cutAt;
+                          return active
+                            ?<span key={d.id} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:11,fontFamily:"var(--font-mono)",fontWeight:800,color:"#fff",background:"#5282e0",borderRadius:5,padding:"3px 10px",boxShadow:"0 0 10px rgba(82,130,224,.4)"}}>
+                                {d.season}{d.team&&<span style={{fontWeight:400,opacity:.85}}> · {d.team}</span>}
+                                <span style={{fontWeight:400,opacity:.7}}>·{d.years}yr→{endSeason(d)}</span>
+                                <span style={{fontSize:8,fontWeight:700,background:"rgba(255,255,255,.25)",borderRadius:3,padding:"1px 4px",letterSpacing:".06em"}}>NOW</span>
+                              </span>
+                            :<span key={d.id} style={{fontSize:10,fontFamily:"var(--font-mono)",fontWeight:600,color:cut?"#e05252":"#5282e0",background:cut?"rgba(224,82,82,.06)":"rgba(82,130,224,.08)",border:`1px solid ${cut?"rgba(224,82,82,.2)":"rgba(82,130,224,.2)"}`,borderRadius:4,padding:"2px 8px",opacity:.7}}>
+                                {d.season}{d.team&&<span style={{fontWeight:400}}> · {d.team}</span>}
+                                {d.years&&<span style={{fontWeight:400}}> · {d.years}yr</span>}
+                                {cut&&<span style={{marginLeft:4}}>✂</span>}
+                              </span>;
+                        })}
+                      </div>
                     </div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                      {(()=>{
-                        const dt=(player.nbaDealsTeams&&typeof player.nbaDealsTeams==="object")?player.nbaDealsTeams:{};
-                        return player.nbaDeals.map(s=>s===cur
-                          ?<span key={s} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontFamily:"var(--font-mono)",fontWeight:800,color:"#fff",background:"#5282e0",borderRadius:5,padding:"3px 10px",boxShadow:"0 0 10px rgba(82,130,224,.4)"}}>
-                              {s}{dt[s]&&<span style={{fontWeight:400,opacity:.85}}> · {dt[s]}</span>}
-                              <span style={{fontSize:8,fontWeight:700,background:"rgba(255,255,255,.25)",borderRadius:3,padding:"1px 4px",letterSpacing:".06em"}}>NOW</span>
-                            </span>
-                          :<span key={s} style={{fontSize:10,fontFamily:"var(--font-mono)",fontWeight:600,color:"#5282e0",background:"rgba(82,130,224,.08)",border:"1px solid rgba(82,130,224,.2)",borderRadius:4,padding:"2px 8px",opacity:.7}}>
-                              {s}{dt[s]&&<span style={{fontWeight:400}}> · {dt[s]}</span>}
-                            </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {player.draftRound&&(
                   <div style={{flex:1,minWidth:150,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px"}}>
                     <div style={{fontFamily:"var(--font-mono)",fontSize:7.5,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".1em",marginBottom:6}}>DRAFT</div>
@@ -3868,59 +3879,82 @@ function PlayerModal({player,onClose,onSave,onDelete,reports,setReports,currentU
               </Field>
               <Field label="Standard NBA Deals">
                 {(()=>{
-                  const deals=Array.isArray(form.nbaDeals)?form.nbaDeals:[];
-                  const dealTeams=form.nbaDealsTeams&&typeof form.nbaDealsTeams==="object"?form.nbaDealsTeams:{};
-                  const curYear=new Date().getFullYear();
-                  const opts=Array.from({length:12},(_,i)=>{const y=curYear-i;return `${y}-${String(y+1).slice(-2)}`;});
+                  const deals=Array.isArray(form.nbaDeals)?form.nbaDeals.filter(d=>d&&typeof d==="object"):[];
+                  const now=new Date();const mo=now.getMonth();const yr=now.getFullYear();
+                  const curSY=mo>=9?yr:yr-1;
+                  const curStr=`${curSY}-${String(curSY+1).slice(-2)}`;
+                  const endSeason=d=>{const sy=parseInt(d.season);const ey=sy+d.years-1;return`${ey}-${String(ey+1).slice(-2)}`;};
+                  const isActive=d=>!d.cutAt&&(()=>{const sy=parseInt(d.season);return curSY>=sy&&curSY<=sy+d.years-1;})();
+                  const isExpired=d=>!d.cutAt&&curSY>parseInt(d.season)+d.years-1;
+                  const activeDeal=deals.find(isActive);
+                  const opts=Array.from({length:12},(_,i)=>{const y=yr-i;return`${y}-${String(y+1).slice(-2)}`;});
                   const NBA_TEAMS=(LEAGUE_TEAMS["NBA"]||[]).filter((v,i,a)=>v&&a.indexOf(v)===i).sort();
-                  const addDeal=(s,t)=>{
-                    if(!s||deals.includes(s))return;
-                    setForm(f=>{
-                      const newDeals=[...(Array.isArray(f.nbaDeals)?f.nbaDeals:[]),s].sort().reverse();
-                      const newTeams={...(f.nbaDealsTeams||{})};
-                      if(t)newTeams[s]=t;
-                      return{...f,nbaDeals:newDeals,nbaDealsTeams:newTeams};
-                    });
-                    if(player.id){
-                      addTLEvent(player.id,{
-                        id:uid(),date:today(),type:"contract",
-                        title:"Standard NBA Deal"+(t?" — "+t:"")+" ("+s+")",
-                        scout:currentUser?.name||"",note:null,
-                      });
-                    }
+                  const addDeal=(s,t,yrs)=>{
+                    if(!s||!yrs||activeDeal)return;
+                    const nd={id:uid(),season:s,team:t||"",years:Number(yrs),cutAt:null};
+                    setForm(f=>({...f,nbaDeals:[...(Array.isArray(f.nbaDeals)?f.nbaDeals.filter(d=>d&&typeof d==="object"):[]),nd]}));
+                    if(player.id){addTLEvent(player.id,{id:uid(),date:today(),type:"contract",
+                      title:`Standard NBA Deal — ${t||"NBA"} · ${yrs}yr (${s} → ${endSeason(nd)})`,
+                      scout:currentUser?.name||"",note:null});}
                   };
-                  const removeDeal=s=>setForm(f=>{
-                    const newTeams={...(f.nbaDealsTeams||{})};
-                    delete newTeams[s];
-                    return{...f,nbaDeals:(Array.isArray(f.nbaDeals)?f.nbaDeals:[]).filter(x=>x!==s),nbaDealsTeams:newTeams};
-                  });
+                  const cutDeal=id=>{
+                    const d=deals.find(x=>x.id===id);
+                    setForm(f=>({...f,nbaDeals:(Array.isArray(f.nbaDeals)?f.nbaDeals:[]).map(x=>x.id===id?{...x,cutAt:curStr}:x)}));
+                    if(player.id&&d){addTLEvent(player.id,{id:uid(),date:today(),type:"contract",
+                      title:`NBA Contract Cut — ${d.team||"NBA"} (${d.season})`,
+                      scout:currentUser?.name||"",note:null});}
+                  };
+                  const removeDeal=id=>setForm(f=>({...f,nbaDeals:(Array.isArray(f.nbaDeals)?f.nbaDeals:[]).filter(d=>d.id!==id)}));
                   return(
                     <div>
-                      {deals.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
-                        {deals.map(s=>(
-                          <span key={s} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",background:"rgba(82,130,224,.12)",border:"1px solid rgba(82,130,224,.3)",borderRadius:4,fontSize:11,fontFamily:"var(--font-mono)",fontWeight:700,color:"#5282e0"}}>
-                            {s}{dealTeams[s]&&<span style={{fontWeight:400,opacity:.8}}> · {dealTeams[s]}</span>}
-                            <button onClick={()=>removeDeal(s)} style={{background:"none",border:"none",color:"#5282e0",cursor:"pointer",padding:0,fontSize:13,lineHeight:1,marginLeft:2}}>×</button>
-                          </span>
-                        ))}
-                      </div>}
-                      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                        <select id="nba-deal-season-sel" defaultValue="" style={{fontSize:11,padding:"4px 8px",flex:"1 1 80px"}}>
-                          <option value="">— stagione —</option>
-                          {opts.filter(s=>!deals.includes(s)).map(s=><option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <select id="nba-deal-team-sel" defaultValue="" style={{fontSize:11,padding:"4px 8px",flex:"2 1 120px"}}>
-                          <option value="">— squadra NBA —</option>
-                          {NBA_TEAMS.map(t=><option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <button onClick={()=>{
-                          const sSel=document.getElementById("nba-deal-season-sel");
-                          const tSel=document.getElementById("nba-deal-team-sel");
-                          addDeal(sSel.value,tSel.value);
-                          sSel.value="";tSel.value="";
-                        }} className="btn-primary" style={{padding:"4px 12px",fontSize:11}}>+</button>
-                      </div>
-                      {deals.length>0&&<div style={{marginTop:4,fontSize:10,fontFamily:"var(--font-mono)",color:"#5282e0"}}>{deals.length} Standard NBA deal{deals.length>1?"s":""} firmati</div>}
+                      {deals.length>0&&(
+                        <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:8}}>
+                          {deals.map(d=>{
+                            const active=isActive(d);const cut=!!d.cutAt;
+                            const sc=active?"#5282e0":cut?"#e05252":"#6b7280";
+                            const sl=active?"ATTIVO":cut?`CUT ${d.cutAt}`:"SCADUTO";
+                            return(
+                              <div key={d.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:active?"rgba(82,130,224,.08)":"rgba(255,255,255,.02)",border:`1px solid ${active?"rgba(82,130,224,.3)":"var(--border)"}`,borderRadius:6}}>
+                                <div style={{flex:1,fontFamily:"var(--font-mono)",fontSize:11,lineHeight:1.5}}>
+                                  <span style={{fontWeight:700,color:sc}}>{d.season}</span>
+                                  {d.team&&<span style={{color:"var(--muted)"}}> · {d.team}</span>}
+                                  <span style={{color:"var(--muted)"}}> · {d.years}yr → {endSeason(d)}</span>
+                                </div>
+                                <span style={{fontSize:9,fontFamily:"var(--font-mono)",fontWeight:700,color:sc,background:`${sc}18`,border:`1px solid ${sc}44`,borderRadius:3,padding:"1px 5px",whiteSpace:"nowrap"}}>{sl}</span>
+                                {active&&<button onClick={()=>cutDeal(d.id)} style={{fontSize:10,padding:"2px 8px",background:"rgba(224,82,82,.1)",border:"1px solid rgba(224,82,82,.3)",borderRadius:4,color:"#e05252",cursor:"pointer",whiteSpace:"nowrap"}}>✂ Taglia</button>}
+                                {!active&&<button onClick={()=>removeDeal(d.id)} style={{background:"none",border:"none",color:"var(--border2)",cursor:"pointer",fontSize:14,lineHeight:1,padding:"0 2px"}}>×</button>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {activeDeal?(
+                        <div style={{padding:"7px 10px",background:"rgba(82,130,224,.06)",border:"1px dashed rgba(82,130,224,.4)",borderRadius:5,fontSize:11,color:"#5282e0",fontFamily:"var(--font-mono)"}}>
+                          Contratto attivo fino a {endSeason(activeDeal)} — usa "✂ Taglia" per rescindere anticipatamente
+                        </div>
+                      ):(
+                        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                          <select id="nba-deal-season-sel" defaultValue="" style={{fontSize:11,padding:"4px 8px",flex:"1 1 80px"}}>
+                            <option value="">— stagione —</option>
+                            {opts.map(s=><option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <select id="nba-deal-team-sel" defaultValue="" style={{fontSize:11,padding:"4px 8px",flex:"2 1 110px"}}>
+                            <option value="">— squadra NBA —</option>
+                            {NBA_TEAMS.map(t=><option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <select id="nba-deal-years-sel" defaultValue="" style={{fontSize:11,padding:"4px 8px",width:68}}>
+                            <option value="">— dur. —</option>
+                            {[1,2,3,4,5].map(y=><option key={y} value={y}>{y}yr</option>)}
+                          </select>
+                          <button onClick={()=>{
+                            const sSel=document.getElementById("nba-deal-season-sel");
+                            const tSel=document.getElementById("nba-deal-team-sel");
+                            const ySel=document.getElementById("nba-deal-years-sel");
+                            addDeal(sSel.value,tSel.value,ySel.value);
+                            sSel.value="";tSel.value="";ySel.value="";
+                          }} className="btn-primary" style={{padding:"4px 12px",fontSize:11}}>+</button>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
