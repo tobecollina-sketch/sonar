@@ -8349,7 +8349,7 @@ function SLPlayerItem({p,selId,notes,saved,onSel,flags,onFlag,prevFlags}){
               style={{background:"none",border:"none",cursor:"pointer",fontSize:14,opacity:isFlagged?1:.25,color:isFlagged?"#f59e0b":"var(--muted)",padding:"0 2px",transition:"opacity .15s,color .15s",lineHeight:1}}>📌</button>
           </div>
         </div>
-        <div style={{fontSize:10,color:"var(--muted)",display:"flex",gap:5}}>{p.jerseyNumber!=null&&<span style={{fontFamily:"var(--font-mono)",fontWeight:700,color:"var(--text)",background:"var(--surface2)",padding:"0 5px",borderRadius:3}}>#{p.jerseyNumber}</span>}{p.pos&&<span style={{color:"var(--accent)",fontFamily:"var(--font-mono)"}}>{p.pos}</span>}{p.year&&<span>{p.year}</span>}{p.height&&<span>{p.height}</span>}</div>
+        <div style={{fontSize:10,color:"var(--muted)",display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>{p.jerseyNumber!=null&&<span style={{fontFamily:"var(--font-mono)",fontWeight:700,color:"var(--text)",background:"var(--surface2)",padding:"0 5px",borderRadius:3}}>#{p.jerseyNumber}</span>}{p.pos&&<span style={{color:"var(--accent)",fontFamily:"var(--font-mono)"}}>{p.pos}</span>}{p.year&&<span>{p.year}</span>}{p.height&&<span>{p.height}</span>}{p.tier&&<span className={`tag ${TIER_COLOR[p.tier]||"tag-gray"}`} style={{fontSize:8,padding:"0 5px",marginLeft:2}}>{p.tier}</span>}</div>
       </div>
     </div>
     {hasPrev&&<div style={{padding:"2px 10px 6px 54px",display:"flex",flexDirection:"column",gap:2}}>
