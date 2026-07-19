@@ -1,6 +1,6 @@
 // SONAR — Service Worker: Push Notifications + Offline Cache
 
-const CACHE = 'sonar-v20260719c';
+const CACHE = 'sonar-v20260719d';
 const OFFLINE_URLS = ['/', '/index.html'];
 
 self.addEventListener('install', event => {
